@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Asset manifest (kiln-assets.json)",
+  "description": "Machine-readable listing of every binary published for one package version. Produced by the CI action and attached to the release; the registry indexes it and the client reads it to pick a binary without guessing.",
+  "type": "object",
+  "required": ["package", "version", "source", "assets"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "package": { "$ref": "package.schema.json#/$defs/packageName" },
+    "version": { "$ref": "package.schema.json#/$defs/semver" },
+    "source": {
+      "type": "object",
+      "required": ["repository", "commit"],
+      "additionalProperties": false,
+      "properties": {
+        "repository": { "type": "string", "format": "uri" },
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "archive": {
+          "description": "Source tarball used for source-fallback builds.",
+          "$ref": "#/$defs/file"
+        }
+      }
+    },
+    "assets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/asset" }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "file": {
+      "type": "object",
+      "required": ["url", "sha256"],
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "description": "Absolute URL, or a path relative to the asset manifest (used by the local provider).",
+          "type": "string",
+          "format": "uri-reference"
+        },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "size": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "asset": {
+      "type": "object",
+      "required": ["id", "settings", "file", "attestation"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Settings hash: sha256 over canonical JSON of {settings, options, dependencies[].id}. The client computes the same hash locally and looks it up for an exact match.",
+          "$ref": "#/$defs/sha256"
+        },
+        "settings": { "$ref": "settings.schema.json" },
+        "options": {
+          "type": "object",
+          "additionalProperties": { "type": ["boolean", "string", "integer"] }
+        },
+        "dependencies": {
+          "description": "Exact dependency builds this binary was linked against. Part of the binary identity.",
+          "type": "object",
+          "propertyNames": { "$ref": "package.schema.json#/$defs/packageName" },
+          "additionalProperties": {
+            "type": "object",
+            "required": ["version", "id"],
+            "additionalProperties": false,
+            "properties": {
+              "version": { "$ref": "package.schema.json#/$defs/semver" },
+              "id": { "$ref": "#/$defs/sha256" }
+            }
+          }
+        },
+        "file": { "$ref": "#/$defs/file" },
+        "attestation": {
+          "description": "Build provenance tying this file to the commit and CI run that produced it.",
+          "type": "object",
+          "required": ["type"],
+          "additionalProperties": false,
+          "if": { "properties": { "type": { "not": { "const": "unsigned" } } } },
+          "then": { "required": ["url"] },
+          "properties": {
+            "type": {
+              "description": "'unsigned' marks an artifact built locally with no provenance. Clients accept it only from a local repository the user chose explicitly, and say so.",
+              "enum": ["github-attestation", "sigstore", "slsa-provenance", "unsigned"]
+            },
+            "url": { "type": "string", "format": "uri" },
+            "identity": {
+              "description": "Expected signer identity, e.g. the workflow ref.",
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

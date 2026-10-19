@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Build settings",
+  "description": "The full set of facts that determine binary compatibility. Two binaries are interchangeable only if all of these (plus options and dependency graph) match. A settings hash is computed from the canonical form of this object.",
+  "$defs": {
+    "os": {
+      "enum": ["linux", "windows", "macos", "freebsd", "android", "ios"]
+    },
+    "arch": {
+      "enum": ["x86", "x86_64", "arm", "arm64", "riscv64", "wasm32"]
+    },
+    "compilerName": {
+      "enum": ["gcc", "clang", "apple-clang", "msvc", "clang-cl"]
+    },
+    "stdlib": {
+      "description": "C++ standard library implementation.",
+      "enum": ["libstdc++", "libc++", "msvc-stl"]
+    },
+    "libc": {
+      "enum": ["glibc", "musl", "msvcrt", "ucrt", "bionic", "system"]
+    },
+    "cppStandard": {
+      "enum": ["11", "14", "17", "20", "23", "26"]
+    },
+    "buildType": {
+      "enum": ["debug", "release", "relwithdebinfo", "minsizerel"]
+    },
+    "linkage": {
+      "enum": ["static", "shared"]
+    },
+    "settings": {
+      "type": "object",
+      "required": ["os", "arch", "compiler", "stdlib", "cpp_standard", "build_type", "linkage"],
+      "additionalProperties": false,
+      "properties": {
+        "os": { "$ref": "#/$defs/os" },
+        "arch": { "$ref": "#/$defs/arch" },
+        "compiler": {
+          "type": "object",
+          "required": ["name", "version"],
+          "additionalProperties": false,
+          "properties": {
+            "name": { "$ref": "#/$defs/compilerName" },
+            "version": {
+              "type": "string",
+              "description": "Major version for gcc/clang/msvc toolset (e.g. \"13\", \"19.40\"). ABI-relevant granularity is compiler-specific.",
+              "pattern": "^[0-9]+(\\.[0-9]+)*$"
+            }
+          }
+        },
+        "stdlib": { "$ref": "#/$defs/stdlib" },
+        "libc": { "$ref": "#/$defs/libc" },
+        "cpp_standard": { "$ref": "#/$defs/cppStandard" },
+        "build_type": { "$ref": "#/$defs/buildType" },
+        "linkage": { "$ref": "#/$defs/linkage" },
+        "msvc_runtime": {
+          "description": "MSVC CRT linkage (/MT vs /MD). Only meaningful on windows.",
+          "enum": ["static", "dynamic"]
+        },
+        "cxx11_abi": {
+          "type": "boolean",
+          "description": "libstdc++ only: value of _GLIBCXX_USE_CXX11_ABI."
+        },
+        "exceptions": { "type": "boolean", "default": true },
+        "rtti": { "type": "boolean", "default": true },
+        "sanitizers": {
+          "type": "array",
+          "items": { "enum": ["address", "undefined", "thread", "memory"] },
+          "uniqueItems": true
+        },
+        "lto": { "type": "boolean", "default": false }
+      }
+    }
+  },
+  "$ref": "#/$defs/settings"
+}

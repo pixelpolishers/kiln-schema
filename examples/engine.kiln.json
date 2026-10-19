@@ -1,0 +1,42 @@
+{
+  "$schema": "../package.schema.json",
+  "name": "acme/engine",
+  "description": "Three libraries that version and ship together",
+  "license": "MIT",
+  "require": {
+    "fmtlib/fmt": { "version": "^11.0", "targets": ["fmt"] }
+  },
+  "targets": {
+    "core": {
+      "type": "library",
+      "include": ["include"],
+      "requires": ["fmtlib/fmt"]
+    },
+    "math": {
+      "type": "library",
+      "include": ["include"],
+      "link-libraries": ["core"]
+    },
+    "render": {
+      "type": "library",
+      "include": ["include"],
+      "link-libraries": ["core", "math"]
+    }
+  },
+  "build": { "system": "cmake" },
+  "matrix": {
+    "os": ["linux", "windows"],
+    "arch": ["x86_64"],
+    "compiler": ["gcc", "msvc"],
+    "cpp_standard": ["20"],
+    "build_type": ["release"],
+    "linkage": ["static"],
+    "exclude": [
+      { "os": "windows", "compiler": "gcc" },
+      { "os": "linux", "compiler": "msvc" }
+    ]
+  },
+  "providers": [
+    { "type": "github" }
+  ]
+}

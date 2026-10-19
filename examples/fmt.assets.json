@@ -1,0 +1,42 @@
+{
+  "$schema": "../assets.schema.json",
+  "package": "fmtlib/fmt",
+  "version": "11.0.2",
+  "source": {
+    "repository": "https://github.com/fmtlib/fmt",
+    "commit": "0123456789abcdef0123456789abcdef01234567",
+    "archive": {
+      "url": "https://github.com/fmtlib/fmt/releases/download/11.0.2/fmt-11.0.2-src.tar.gz",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "size": 812345
+    }
+  },
+  "assets": [
+    {
+      "id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "settings": {
+        "os": "linux",
+        "arch": "x86_64",
+        "compiler": { "name": "gcc", "version": "13" },
+        "stdlib": "libstdc++",
+        "libc": "glibc",
+        "cpp_standard": "17",
+        "build_type": "release",
+        "linkage": "static",
+        "cxx11_abi": true
+      },
+      "options": {},
+      "dependencies": {},
+      "file": {
+        "url": "https://github.com/fmtlib/fmt/releases/download/11.0.2/fmt-11.0.2-linux-x86_64-gcc13-17-release-static.tar.zst",
+        "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "size": 245760
+      },
+      "attestation": {
+        "type": "github-attestation",
+        "url": "https://github.com/fmtlib/fmt/attestations/1234567",
+        "identity": "https://github.com/fmtlib/fmt/.github/workflows/kiln.yml@refs/tags/11.0.2"
+      }
+    }
+  ]
+}

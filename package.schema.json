@@ -1,0 +1,417 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Package manifest (kiln.json)",
+  "description": "Project configuration file. Declares identity, dependencies, output targets, how to build, which configurations CI should publish, and where binaries live.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "name": {
+      "type": "string",
+      "description": "vendor/package, lowercase. Optional for a project that only uses libraries; required to package or publish one (kiln package, the registry).",
+      "pattern": "^[a-z0-9]([a-z0-9_.-]*[a-z0-9])?/[a-z0-9]([a-z0-9_.-]*[a-z0-9])?$"
+    },
+    "version": {
+      "description": "Optional. The version is derived from the git tag by the registry; if present it must equal the tag or the version is rejected.",
+      "$ref": "#/$defs/semver"
+    },
+    "description": { "type": "string" },
+    "language": {
+      "description": "Languages the public API uses. For \"c\" packages the binary id ignores cpp_standard, stdlib, cxx11_abi, rtti and exceptions, since a C library does not depend on them.",
+      "enum": ["c", "c++"],
+      "default": "c++"
+    },
+    "license": {
+      "type": "string",
+      "description": "SPDX license expression."
+    },
+    "homepage": { "type": "string", "format": "uri" },
+    "keywords": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "repository": {
+      "type": "object",
+      "required": ["type", "url"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["git"] },
+        "url": { "type": "string", "format": "uri" },
+        "submodules": {
+          "description": "Check out the repository's git submodules (recursively) together with the source. Submodule URLs must be https.",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+
+    "require": {
+      "description": "Runtime/link dependencies: package name -> version constraint.",
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/packageName" },
+      "additionalProperties": { "$ref": "#/$defs/dependency" }
+    },
+    "require-dev": {
+      "description": "Dependencies only needed to build tests/tools of this package.",
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/packageName" },
+      "additionalProperties": { "$ref": "#/$defs/dependency" }
+    },
+
+    "options": {
+      "description": "Package-level build options consumers may set. Part of the binary identity.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["default"],
+        "additionalProperties": false,
+        "properties": {
+          "description": { "type": "string" },
+          "default": { "type": ["boolean", "string", "integer"] },
+          "values": {
+            "type": "array",
+            "items": { "type": ["boolean", "string", "integer"] },
+            "minItems": 1
+          }
+        }
+      }
+    },
+
+    "targets": {
+      "description": "Outputs this package produces.",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/target" }
+    },
+
+    "system-requires": {
+      "description": "What must exist on the machine to USE this package: development packages the consumer links against (GTK for a GTK-based toolkit), SDKs, runtime libraries. Checked on every install, also when the package is cached or comes as a prebuilt binary, and a missing one stops the install with a hint (unless 'optional'). Also required for source builds. Entries are per platform: give each its own 'when' ({\"os\": \"linux\"}, {\"os\": \"windows\"}) and its own 'hint' (per distribution, 'macos', 'windows'). 'build.requires' stays the place for things only the build needs (Perl, NASM).",
+      "type": "array",
+      "items": { "$ref": "#/$defs/requirement" }
+    },
+
+    "build": { "$ref": "#/$defs/build" },
+
+    "matrix": {
+      "description": "Configurations CI should build and publish. Each key lists allowed values; the cartesian product (minus 'exclude') is built. Omitted keys use the platform default for each os/compiler combination (e.g. stdlib, cxx11_abi). The CI action always writes fully resolved settings, including defaults, into the asset manifest.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "os": { "type": "array", "items": { "$ref": "settings.schema.json#/$defs/os" }, "minItems": 1 },
+        "arch": { "type": "array", "items": { "$ref": "settings.schema.json#/$defs/arch" }, "minItems": 1 },
+        "compiler": { "type": "array", "items": { "$ref": "settings.schema.json#/$defs/compilerName" }, "minItems": 1 },
+        "stdlib": { "type": "array", "items": { "$ref": "settings.schema.json#/$defs/stdlib" } },
+        "cpp_standard": { "type": "array", "items": { "$ref": "settings.schema.json#/$defs/cppStandard" } },
+        "build_type": { "type": "array", "items": { "$ref": "settings.schema.json#/$defs/buildType" }, "minItems": 1 },
+        "linkage": { "type": "array", "items": { "$ref": "settings.schema.json#/$defs/linkage" }, "minItems": 1 },
+        "options": {
+          "type": "object",
+          "additionalProperties": { "type": "array", "minItems": 1 }
+        },
+        "exclude": {
+          "type": "array",
+          "items": { "type": "object" }
+        }
+      }
+    },
+
+    "providers": {
+      "description": "Where built assets are stored. Tried in order.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/provider" }
+    },
+
+    "source-fallback": {
+      "description": "Whether the client may build from source when no matching binary exists.",
+      "type": "boolean",
+      "default": true
+    }
+  },
+
+  "$defs": {
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$"
+    },
+    "packageName": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9_.-]*[a-z0-9])?/[a-z0-9]([a-z0-9_.-]*[a-z0-9])?$"
+    },
+    "versionConstraint": {
+      "type": "string",
+      "description": "Version constraint: \"3.12.0\", \"^3.12\", \"~3.12.0\", \">=3.10 <4\", \"3.*\".",
+      "minLength": 1
+    },
+    "dependency": {
+      "oneOf": [
+        { "$ref": "#/$defs/versionConstraint" },
+        {
+          "type": "object",
+          "required": ["version"],
+          "additionalProperties": false,
+          "properties": {
+            "version": { "$ref": "#/$defs/versionConstraint" },
+            "options": {
+              "type": "object",
+              "additionalProperties": { "type": ["boolean", "string", "integer"] }
+            },
+            "optional": { "type": "boolean", "default": false },
+            "targets": {
+              "description": "Only link these targets of the dependency (defaults to all). Does not change the binary id: the asset contains every target.",
+              "type": "array",
+              "items": { "type": "string" },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "platforms": {
+              "description": "Only required on these operating systems.",
+              "type": "array",
+              "items": { "$ref": "settings.schema.json#/$defs/os" }
+            }
+          }
+        }
+      ]
+    },
+    "target": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "description": "'library' takes its static/shared form from settings.linkage (the usual choice; the matrix decides). 'static-library' / 'dynamic-library' force one form regardless of linkage. 'header-only' produces no binary.",
+          "enum": ["executable", "library", "static-library", "dynamic-library", "header-only", "module"]
+        },
+        "when": {
+          "description": "The target exists only in configurations matching this condition (same keys as elsewhere: os, options.<name>, ...). Use it for parts of a library that an option switches on, e.g. the GUI libraries of wxWidgets.",
+          "$ref": "#/$defs/when"
+        },
+        "output-name": { "description": "Library or program name without prefix and extension (libz.a is \"z\"). For libraries it may start with a subdirectory of lib/ (\"opencv4/3rdparty/zlib\").", "type": "string" },
+        "sources": {
+          "description": "Source globs, relative to the source root. Only used when build.system is 'native' (kiln compiles them itself); ignored for build systems that have their own project files.",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "include": {
+          "description": "Include directories exported to consumers (public), relative to the package's install root (the layout shipped in the archive), not the source tree. Default [\"include\"]. An item may be {value, when} for directories that depend on the settings or options (wxWidgets keeps its setup.h in a directory named after the toolkit).",
+          "type": "array",
+          "items": { "$ref": "#/$defs/conditionalString" }
+        },
+        "include-private": { "type": "array", "items": { "type": "string" } },
+        "defines": {
+          "type": "object",
+          "additionalProperties": { "type": ["string", "boolean", "null"] }
+        },
+        "compile-options": { "type": "array", "items": { "type": "string" } },
+        "link-libraries": {
+          "description": "System libraries or sibling targets to link. An item may be {value, when} for platform/linkage-specific libraries (e.g. ws2_32 on windows).",
+          "type": "array",
+          "items": { "$ref": "#/$defs/conditionalString" }
+        },
+        "requires": {
+          "description": "Subset of 'require' this target links against; defaults to all.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/packageName" }
+        },
+        "install": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "headers": { "type": "array", "items": { "type": "string" } },
+            "files": {
+              "type": "object",
+              "description": "source glob -> destination relative to package root.",
+              "additionalProperties": { "type": "string" }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "header-only" } } },
+          "then": { "not": { "required": ["sources"] } }
+        }
+      ]
+    },
+    "templateString": {
+      "description": "String that may contain placeholders: {prefix} {jobs} {cc} {cxx} {source_dir} {build_dir} {deps} {settings.<field>} {options.<name>}.",
+      "type": "string",
+      "pattern": "^([^{}]|\\{(prefix|jobs|cc|cxx|source_dir|build_dir|deps|settings\\.[a-z_0-9]+(\\.[a-z_0-9]+)?|options\\.[A-Za-z0-9_]+)\\})*$"
+    },
+    "when": {
+      "description": "Condition on the current settings/options. All keys must match (AND); a list value matches any of its entries (OR). Keys: os, arch, compiler.name, compiler.version, stdlib, libc, cpp_standard, build_type, linkage, msvc_runtime, options.<name>.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^(os|arch|compiler\\.name|compiler\\.version|stdlib|libc|cpp_standard|build_type|linkage|msvc_runtime|options\\.[A-Za-z0-9_]+)$"
+      },
+      "additionalProperties": {
+        "oneOf": [
+          { "type": ["string", "boolean", "integer"] },
+          { "type": "array", "items": { "type": ["string", "boolean", "integer"] }, "minItems": 1 }
+        ]
+      }
+    },
+    "conditionalString": {
+      "oneOf": [
+        { "$ref": "#/$defs/templateString" },
+        {
+          "type": "object",
+          "required": ["value", "when"],
+          "additionalProperties": false,
+          "properties": {
+            "value": { "$ref": "#/$defs/templateString" },
+            "when": { "$ref": "#/$defs/when" }
+          }
+        }
+      ]
+    },
+    "optionValue": {
+      "oneOf": [
+        { "type": ["string", "boolean", "integer"] },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["value"],
+            "additionalProperties": false,
+            "properties": {
+              "value": { "type": ["string", "boolean", "integer"] },
+              "when": { "$ref": "#/$defs/when" }
+            }
+          }
+        }
+      ]
+    },
+    "requirement": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "description": "Shown to the user, e.g. \"Perl core modules\".", "type": "string", "minLength": 1 },
+        "tool": { "description": "A program that must be on PATH.", "type": "string", "minLength": 1 },
+        "check": {
+          "description": "A command (argv, no shell) that must exit with status 0.",
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "pkg-config": { "description": "A pkg-config package that must be installed (pkg-config --exists). Mostly useful on Linux, macOS and other Unix systems.", "type": "string", "minLength": 1 },
+        "file": { "description": "A path that must exist; a glob is allowed and $NAME / ${NAME} are expanded from the environment (for example \"${VULKAN_SDK}/Include/vulkan/vulkan.h\" or \"/usr/include/GL/gl.h\"). The usual check where there is no pkg-config, such as Windows.", "type": "string", "minLength": 1 },
+        "env": { "description": "An environment variable that must be set and not empty (for example VULKAN_SDK).", "type": "string", "minLength": 1 },
+        "optional": {
+          "description": "If true a missing requirement only produces a warning (the package builds with reduced functionality).",
+          "type": "boolean",
+          "default": false
+        },
+        "hint": {
+          "description": "How to install it: a string, or an object keyed by distribution id (\"fedora\", \"debian\", ...), operating system (\"linux\", \"macos\", \"windows\") or \"default\".",
+          "oneOf": [
+            { "type": "string" },
+            { "type": "object", "minProperties": 1, "additionalProperties": { "type": "string" } }
+          ]
+        },
+        "when": { "$ref": "#/$defs/when" }
+      },
+      "oneOf": [
+        { "required": ["tool"] },
+        { "required": ["check"] },
+        { "required": ["pkg-config"] },
+        { "required": ["file"] },
+        { "required": ["env"] }
+      ]
+    },
+    "build": {
+      "type": "object",
+      "required": ["system"],
+      "additionalProperties": false,
+      "properties": {
+        "system": { "enum": ["cmake", "meson", "make", "autotools", "msbuild", "native", "custom", "none"] },
+        "source-dir": { "type": "string", "default": "." },
+        "options": {
+          "description": "Passed to the build system (e.g. cmake -D flags). For 'cmake', kiln also passes the settings automatically: install prefix, CMAKE_BUILD_TYPE, BUILD_SHARED_LIBS, CMAKE_CXX_STANDARD, compilers, runtime and CMAKE_PREFIX_PATH for installed dependencies. A value may be a scalar or a list of {value, when}; the first entry whose 'when' matches wins (no match = option omitted).",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/optionValue" }
+        },
+        "requires": {
+          "description": "What must exist on the machine to build this package from source (tools, modules, development packages). Checked before any build starts; everything that is missing is reported at once, with install hints. 'git' and, for cmake builds, 'cmake' are always required implicitly. Checks run commands from the manifest with the same trust as the build itself, and only when a source build is about to happen.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/requirement" }
+        },
+        "commands": {
+          "description": "Used when system is 'custom'. Steps run in order from the source directory, as argv arrays (no shell). kiln exports CC, CXX and the matching flags for the detected toolchain in the step environment. Placeholders: {prefix} install root, {jobs} parallelism, {cc} {cxx} compilers, {source_dir} {build_dir}, {deps} dependency install roots (path-list separated), {settings.<field>} e.g. {settings.build_type}, {options.<name>}.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["run"],
+            "additionalProperties": false,
+            "properties": {
+              "run": {
+                "description": "argv. An item may be a string or {value, when}; items whose 'when' does not match the current settings are dropped.",
+                "type": "array",
+                "items": { "$ref": "#/$defs/conditionalString" },
+                "minItems": 1
+              },
+              "when": {
+                "description": "Run the step only if the current settings match.",
+                "$ref": "#/$defs/when"
+              }
+            }
+          }
+        }
+      },
+      "if": { "properties": { "system": { "const": "custom" } } },
+      "then": { "required": ["commands"] }
+    },
+    "provider": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["type"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "github" },
+            "repository": {
+              "description": "owner/repo; defaults to 'repository.url' if GitHub.",
+              "type": "string",
+              "pattern": "^[^/]+/[^/]+$"
+            },
+            "tag": {
+              "description": "Release tag template. Placeholders: {version} (1.3.1), {major}, {minor}, {patch}; curl tags 8.19.0 as curl-8_19_0, so its template is curl-{major}_{minor}_{patch}. {minor:02} and {patch:02} pad to two digits (re2 tags 2025-11-05 for version 2025.11.5).",
+              "type": "string",
+              "default": "v{version}"
+            },
+            "manifest-asset": {
+              "description": "Name of the release asset holding the asset manifest.",
+              "type": "string",
+              "default": "kiln-assets.json"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "url"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "url" },
+            "url": {
+              "description": "Template with {name}, {version}. Must serve the asset manifest.",
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "path"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "local" },
+            "path": { "type": "string" }
+          }
+        }
+      ]
+    }
+  }
+}

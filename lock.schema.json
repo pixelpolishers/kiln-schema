@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Lockfile (kiln.lock)",
+  "description": "Which version of which package a project uses. It locks versions, not the environment: nothing in it depends on the operating system, compiler or build settings of the machine that wrote it, so developers on different platforms share one file and a rewrite by anyone gives the same bytes for the same versions. Each machine works out for itself how to obtain a binary for the locked versions. Platform-specific dependencies (dependencies restricted with 'platforms') are locked for every platform.",
+  "type": "object",
+  "required": ["lock-version", "content-hash", "packages"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "lock-version": { "const": 2 },
+    "content-hash": {
+      "description": "Hash of the require/require-dev sections of kiln.json; detects a stale lock.",
+      "type": "string"
+    },
+    "packages": {
+      "description": "Every package of the dependency graph for every platform, dependencies first.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "version"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "$ref": "package.schema.json#/$defs/packageName" },
+          "version": { "$ref": "package.schema.json#/$defs/semver" },
+          "commit": {
+            "description": "The commit the registry pinned for this version when the lock was written. If the registry later reports a different one, the tag was moved or the version republished, and install refuses. Absent where the registry pins nothing.",
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "requires": {
+            "description": "The packages this one depends on (for readers of the lock; the pinned versions fully determine them).",
+            "type": "array",
+            "items": { "$ref": "package.schema.json#/$defs/packageName" }
+          }
+        }
+      }
+    }
+  }
+}

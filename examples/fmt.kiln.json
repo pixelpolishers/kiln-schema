@@ -1,0 +1,38 @@
+{
+  "$schema": "../package.schema.json",
+  "name": "fmtlib/fmt",
+  "description": "A modern formatting library",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/fmtlib/fmt" },
+  "targets": {
+    "fmt": {
+      "type": "library",
+      "include": ["include"]
+    },
+    "fmt-header-only": {
+      "type": "header-only",
+      "include": ["include"],
+      "defines": { "FMT_HEADER_ONLY": true }
+    }
+  },
+  "build": {
+    "system": "cmake",
+    "options": { "FMT_TEST": false, "FMT_DOC": false }
+  },
+  "matrix": {
+    "os": ["linux", "windows", "macos"],
+    "arch": ["x86_64", "arm64"],
+    "compiler": ["gcc", "clang", "msvc"],
+    "cpp_standard": ["17", "20"],
+    "build_type": ["debug", "release"],
+    "linkage": ["static", "shared"],
+    "exclude": [
+      { "os": "windows", "compiler": "gcc" },
+      { "os": "linux", "compiler": "msvc" },
+      { "os": "macos", "compiler": "msvc" }
+    ]
+  },
+  "providers": [
+    { "type": "github", "tag": "{version}" }
+  ]
+}
