@@ -27,7 +27,7 @@ Most programs do not use this directly: [kiln-core](https://github.com/pixelpoli
 
 `validate.py` checks the schemas themselves and any number of files (needs `pip install jsonschema referencing`):
 
-```
+```sh
 python validate.py . package.schema.json=examples/fmt.kiln.json lock.schema.json=examples/engine.lock.json
 ```
 
